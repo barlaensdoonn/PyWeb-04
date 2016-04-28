@@ -25,7 +25,7 @@ new 'Bottom Text' and observe the network requests being made, and note
 the imageID for the Ancient Aliens meme.
 
 TODO #1:
-The imageID for the Ancient Aliens meme is:
+The imageID for the Ancient Aliens meme is: 627067
 
 You will also need a way to identify headlines on the CNN page using
 BeautifulSoup. On the 'Unnecessary Knowledge Page', our fact was
@@ -55,9 +55,9 @@ pointing arrow, then you can click on it to see its contents.
 
 TODO #2:
 Each 'Top Stories' headline is wrapped in a tag that has:
-* name:
-* attribute name:
-* attribute value:
+* name: span
+* attribute name: class
+* attribute value: cd__headline-text
 
 NOTE: We used the `find` method to find our fact element from unkno.com.
 The `find` method WILL ALSO work for finding a headline element from cnn.com,
@@ -101,10 +101,12 @@ To submit your homework:
 from bs4 import BeautifulSoup
 import requests
 
-def meme_it(fact):
+
+def meme_it(fact, image):
+    '''returns a meme based on inputted arguments'''
     url = 'http://cdn.meme.am/Instance/Preview'
     params = {
-        'imageID': 2097248,
+        'imageID': image,
         'text1': fact
     }
 
@@ -113,25 +115,56 @@ def meme_it(fact):
     return response.content
 
 
-def parse_fact(body):
+def parse_fact(body, site):
+    '''pull out desired text from the site argument url'''
     parsed = BeautifulSoup(body, 'html5lib')
-    fact = parsed.find('div', id='content')
+
+    if site == 'http://unkno.com':
+        fact = parsed.find('div', id='content')
+    else:
+        fact = parsed.find('span', class_='cd__headline-text')
+
     return fact.text.strip()
 
-def get_fact():
-    response = requests.get('http://unkno.com')
-    return parse_fact(response.text)
+
+def get_fact(site):
+    '''gets an html page based on site variable and parses it into text'''
+    response = requests.get(site)
+    return parse_fact(response.text, site)
+
 
 def process(path):
+    '''
+    Returns a meme based on the path entered into the browser:
+    1) text - which url to grab text from
+    2) which_meme - which image id to use for the meme
+    '''
     args = path.strip("/").split("/")
 
-    fact = get_fact()
+    text = args.pop(0)
+    which_meme = args.pop(0)
 
-    meme = meme_it(fact)
+    texty_memes = {
+        "fact": 'http://unkno.com',
+        "news": 'http://www.cnn.com',
+        "buzz": 2097248,
+        "aliens": 627067,
+    }
+
+    site = texty_memes.get(text)
+    image = texty_memes.get(which_meme)
+
+    fact = get_fact(site)
+    meme = meme_it(fact, image)
 
     return meme
 
+
 def application(environ, start_response):
+    '''
+    Main function to parse the path input into the browser,
+    call the function to generate a meme, and handle errors
+    '''
     headers = [('Content-type', 'image/jpeg')]
     try:
         path = environ.get('PATH_INFO', None)
@@ -150,6 +183,7 @@ def application(environ, start_response):
         headers.append(('Content-length', str(len(body))))
         start_response(status, headers)
         return [body]
+
 
 if __name__ == '__main__':
     from wsgiref.simple_server import make_server
